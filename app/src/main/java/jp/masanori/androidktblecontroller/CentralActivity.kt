@@ -24,6 +24,9 @@ import android.os.Build
 import android.os.ParcelUuid
 import android.support.v4.app.FragmentActivity
 import android.util.Log
+import android.view.View
+import android.widget.Button
+import android.widget.EditText
 import android.widget.TextView
 import java.util.UUID
 
@@ -34,7 +37,6 @@ class CentralActivity : FragmentActivity() {
     private var bleGatt: BluetoothGatt? = null
     private var bleCharacteristic: BluetoothGattCharacteristic? = null
     private final var locationAccesser = LocationAccesser()
-    private var isBleEnabled = false
     private var textReceived: TextView? = null
     private final var REQUEST_NUM_BLE_ON = 1
 
@@ -51,6 +53,11 @@ class CentralActivity : FragmentActivity() {
 
         textReceived = findViewById(R.id.text_received) as TextView
 
+        var editTextSend = findViewById(R.id.edittext_send) as EditText
+        var buttonSendText = findViewById(R.id.button_send_text) as Button
+        buttonSendText!!.setOnClickListener {
+            sendText(editTextSend.text.toString())
+        }
         // BluetoothがOffならインテントを表示する.
         if(bleAdapter!!.isEnabled) {
             scanNewDevice()
@@ -89,7 +96,6 @@ class CentralActivity : FragmentActivity() {
                     // 接続が切れたらGATTを空にする.
                     bleGatt!!.close()
                     bleGatt = null
-                    isBleEnabled = false
                 }
             }
         }
@@ -116,7 +122,6 @@ class CentralActivity : FragmentActivity() {
 
                     _bleDescriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
                     bleGatt!!.writeDescriptor(_bleDescriptor)
-                    isBleEnabled = true
                     // 接続が終わったらScanを止める.
                     bleScanner!!.stopScan(bleScanCallback!!)
                 }
@@ -178,5 +183,13 @@ class CentralActivity : FragmentActivity() {
                 .build()
         // デバイスの検出.
         bleScanner!!.startScan(listOf(filter!!), setting!!, bleScanCallback)
+    }
+    private fun sendText(sendValue: String){
+        // 1台以上接続されていれば書き込みリクエストを送る.
+        if(bleManager!!.getConnectedDevices(BluetoothProfile.GATT).isEmpty()){
+           return
+        }
+        bleCharacteristic!!.value = sendValue.toByteArray()
+        bleGatt!!.writeCharacteristic(bleCharacteristic)
     }
 }
