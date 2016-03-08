@@ -21,6 +21,7 @@ import com.google.android.gms.location.LocationSettingsStatusCodes
 
 class LocationAccesser : GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
     private var apiClient: GoogleApiClient? = null
+    final var REQUEST_NUM_LOCATION = 2
     override fun onConnectionFailed(result: ConnectionResult) {
     }
 
@@ -52,29 +53,32 @@ class LocationAccesser : GoogleApiClient.ConnectionCallbacks, GoogleApiClient.On
         val result = LocationServices.SettingsApi.checkLocationSettings(apiClient, builder.build())
         result.setResultCallback {
             settingsResult ->
-            val status = settingsResult.status
-            when (status.statusCode) {
-                LocationSettingsStatusCodes.SUCCESS ->
-                    // GPSがOnならScan開始.
-                    activity.onGpsEnabled()
-                LocationSettingsStatusCodes.RESOLUTION_REQUIRED ->
-                    try {
-                    // GPSがOffならIntent表示. onActivityResultで結果取得.
-                    status.startResolutionForResult(
-                            activity, R.string.request_num_gps_on)
-                    } catch (ex: IntentSender.SendIntentException) {
-                        // Runnable() - run().
-                        activity.runOnUiThread {
-                            val alert = AlertDialog.Builder(activity)
-                            alert.setTitle(activity.getString(R.string.error_title))
-                            alert.setMessage(ex.message)
-                            alert.setPositiveButton(activity.getString(android.R.string.ok), null)
-                            alert.show()
+                val status = settingsResult.status
+                when (status.statusCode) {
+                    LocationSettingsStatusCodes.SUCCESS ->{
+                        // GPSがOnならScan開始.
+                        activity.onGpsEnabled()
                     }
-                }
-                LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE -> {
-                }
-            }// Locationが無効なら無視.
+                    LocationSettingsStatusCodes.RESOLUTION_REQUIRED ->{
+                        try {
+                            // GPSがOffならIntent表示. onActivityResultで結果取得.
+                            status.startResolutionForResult(
+                                    activity, REQUEST_NUM_LOCATION)
+                        } catch (ex: IntentSender.SendIntentException) {
+                            // Runnable() - run().
+                            activity.runOnUiThread {
+                                val alert = AlertDialog.Builder(activity)
+                                alert.setTitle(activity.getString(R.string.error_title))
+                                alert.setMessage(ex.message)
+                                alert.setPositiveButton(activity.getString(android.R.string.ok), null)
+                                alert.show()
+                            }
+                        }
+                    }
+                    LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE -> {
+                        // Locationが無効なら無視.
+                    }
+            }
         }
     }
 }

@@ -1,8 +1,5 @@
 <resources>
     <string name="app_name">AndroidKtBleController</string>
-    <string name="request_num_location">1</string>
-    <string name="request_num_ble_on">2</string>
-    <string name="request_num_gps_on">2</string>
     <string name="ble_not_supported">お使いの端末はBLEに対応していません。</string>
     <string name="uuid_service">2B1DA6DE-9C29-4D6C-A930-B990EA2F12BB</string>
     <string name="uuid_characteristic">7F855F82-9378-4508-A3D2-CD989104AF22</string>

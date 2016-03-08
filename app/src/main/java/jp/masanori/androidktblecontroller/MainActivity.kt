@@ -11,7 +11,8 @@ import android.widget.Button
 import android.widget.Toast
 
 class MainActivity : AppCompatActivity() {
-    var isPermissionAllowed = false
+    private var isPermissionAllowed = false
+    private final var REQUEST_NUM_PERMISSION_LOCATION = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,13 +48,13 @@ class MainActivity : AppCompatActivity() {
             isPermissionAllowed = true
         }
         else{
-            requestPermissions(arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION), R.string.request_num_location)
+            requestPermissions(arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION), REQUEST_NUM_PERMISSION_LOCATION)
         }
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         // 権限リクエストの結果を取得する.
-        if (requestCode == R.string.request_num_location) {
+        if (requestCode == REQUEST_NUM_PERMISSION_LOCATION) {
             if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 isPermissionAllowed = true
             }

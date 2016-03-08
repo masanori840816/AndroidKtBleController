@@ -23,6 +23,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.ParcelUuid
 import android.support.v4.app.FragmentActivity
+import android.util.Log
 import android.widget.TextView
 import java.util.UUID
 
@@ -63,13 +64,13 @@ class CentralActivity : FragmentActivity() {
         // Intentでユーザーがボタンを押したら実行.
         super.onActivityResult(requestCode, resultCode, data)
         when(requestCode) {
-            R.string.request_num_ble_on -> {
+            REQUEST_NUM_BLE_ON -> {
                 if(bleAdapter!!.isEnabled()){
                     // BLEが使用可能ならスキャン開始.
                     scanNewDevice()
                 }
             }
-            R.string.request_num_gps_on -> {
+            locationAccesser.REQUEST_NUM_LOCATION -> {
                 if(resultCode == Activity.RESULT_OK){
                     onGpsEnabled()
                 }
@@ -100,7 +101,8 @@ class CentralActivity : FragmentActivity() {
                     var _bleService = gatt.getService(UUID.fromString(getString(R.string.uuid_service)))
 
                     // 指定したUUIDを持つCharacteristicを確認する.
-                    bleCharacteristic = _bleService.getCharacteristic(UUID.fromString(getString(R.string.uuid_characteristic)))
+                    bleCharacteristic = _bleService.getCharacteristic(UUID.fromString(getString(R.string.uuid_characteristic))) as BluetoothGattCharacteristic
+                    bleCharacteristic!!.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
 
                     // Service, CharacteristicのUUIDが同じならBluetoothGattを更新する.
                     bleGatt = gatt;
@@ -112,10 +114,11 @@ class CentralActivity : FragmentActivity() {
                     var _bleDescriptor: BluetoothGattDescriptor = bleCharacteristic!!.getDescriptor(UUID.fromString(getString(R.string.uuid_characteristic_config)))
 
 
-                    _bleDescriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE;
+                    _bleDescriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
                     bleGatt!!.writeDescriptor(_bleDescriptor)
-                    // 接続が完了したらデータ送信を開始する.
                     isBleEnabled = true
+                    // 接続が終わったらScanを止める.
+                    bleScanner!!.stopScan(bleScanCallback!!)
                 }
             }
         }
@@ -131,6 +134,17 @@ class CentralActivity : FragmentActivity() {
             }
         }
     }
+    private final val bleScanCallback: ScanCallback = object : ScanCallback(){
+        override fun onScanResult(callbackType: Int, result: ScanResult) {
+            super.onScanResult(callbackType, result)
+
+            // スキャン中に見つかったデバイスに接続を試みる.第三引数には接続後に呼ばれるBluetoothGattCallbackを指定する.
+            result.device.connectGatt(applicationContext, false, bleGattCallback)
+        }
+        override fun onScanFailed(intErrorCode: Int){
+            super.onScanFailed(intErrorCode)
+        }
+    };
     private fun scanNewDevice(){
         //
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){
@@ -159,17 +173,10 @@ class CentralActivity : FragmentActivity() {
                 .setServiceUuid(ParcelUuid(UUID.fromString(getString(R.string.uuid_service))))
                 .build()
 
-        var setting: ScanSettings = ScanSettings.Builder().build()
+        var setting: ScanSettings = ScanSettings.Builder()
+                .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
+                .build()
         // デバイスの検出.
-        bleScanner!!.startScan(listOf(filter!!), setting!!,object: ScanCallback(){
-            override fun onScanResult(callbackType: Int, result: ScanResult) {
-                super.onScanResult(callbackType, result)
-                // スキャン中に見つかったデバイスに接続を試みる.第三引数には接続後に呼ばれるBluetoothGattCallbackを指定する.
-                result.getDevice().connectGatt(getApplicationContext(), false, bleGattCallback)
-            }
-            override fun onScanFailed(intErrorCode: Int){
-                super.onScanFailed(intErrorCode)
-            }
-        })
+        bleScanner!!.startScan(listOf(filter!!), setting!!, bleScanCallback)
     }
 }
