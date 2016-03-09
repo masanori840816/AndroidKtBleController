@@ -84,6 +84,24 @@ class CentralActivity : FragmentActivity() {
             }
         }
     }
+    override fun onPause(){
+        super.onPause()
+        Log.d("BLE", "OnPause")
+    }
+    override fun onDestroy(){
+        super.onDestroy()
+
+        // reset.
+        if(bleAdapter!!.isEnabled) {
+            bleScanner!!.stopScan(bleScanCallback)
+            // 接続中のデバイスがあれば切断して閉じる.
+            if (!bleManager!!.getConnectedDevices(BluetoothProfile.GATT).isEmpty()) {
+                bleGatt!!.disconnect()
+                bleGatt!!.close()
+            }
+            bleGatt = null
+        }
+    }
     private final val bleGattCallback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, stateNum: Int) {
             // 接続状況が変化したら実行.
@@ -95,7 +113,6 @@ class CentralActivity : FragmentActivity() {
                 BluetoothProfile.STATE_DISCONNECTED ->{
                     // 接続が切れたらGATTを空にする.
                     bleGatt!!.close()
-                    bleGatt = null
                 }
             }
         }
