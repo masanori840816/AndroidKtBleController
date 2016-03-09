@@ -23,7 +23,8 @@
             </intent-filter>
         </activity>
         <activity android:name=".CentralActivity" />
-        <activity android:name=".PeripheralActivity"></activity>
+        <activity android:name=".PeripheralActivity"/>
+
     </application>
 
 </manifest>

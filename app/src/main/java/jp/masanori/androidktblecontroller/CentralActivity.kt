@@ -10,7 +10,6 @@ import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
-import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.BluetoothLeScanner
@@ -18,8 +17,10 @@ import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanSettings
 import android.bluetooth.le.ScanResult
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
 import android.os.ParcelUuid
 import android.support.v4.app.FragmentActivity
@@ -66,6 +67,8 @@ class CentralActivity : FragmentActivity() {
             // Intentでボタンを押すとonActivityResultが実行されるので、第二引数の番号を元に処理を行う.
             startActivityForResult(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE), REQUEST_NUM_BLE_ON)
         }
+        //
+        registerReceiver(broadcastReceiver, IntentFilter(BluetoothDevice.ACTION_ACL_CONNECTED))
     }
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?){
         // Intentでユーザーがボタンを押したら実行.
@@ -86,7 +89,11 @@ class CentralActivity : FragmentActivity() {
     }
     override fun onPause(){
         super.onPause()
-        Log.d("BLE", "OnPause")
+        unregisterReceiver(broadcastReceiver)
+    }
+    override fun onResume(){
+        super.onResume()
+        registerReceiver(broadcastReceiver, IntentFilter(BluetoothDevice.ACTION_ACL_CONNECTED))
     }
     override fun onDestroy(){
         super.onDestroy()
@@ -167,6 +174,12 @@ class CentralActivity : FragmentActivity() {
             super.onScanFailed(intErrorCode)
         }
     };
+    private var broadcastReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context : Context?, intent : Intent?){
+            bleGatt = null
+            scanNewDevice()
+        }
+    }
     private fun scanNewDevice(){
         //
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){
