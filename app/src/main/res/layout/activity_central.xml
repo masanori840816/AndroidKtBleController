@@ -40,8 +40,8 @@
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Send"
-        android:id="@+id/button_send_text"
+        android:text="Write"
+        android:id="@+id/button_write"
         android:layout_centerVertical="true"
         android:layout_alignParentEnd="true" />
 
@@ -50,9 +50,28 @@
         android:layout_height="wrap_content"
         android:inputType="textMultiLine"
         android:ems="10"
-        android:id="@+id/edittext_send"
+        android:id="@+id/edittext_write"
         android:layout_alignTop="@+id/text_received"
-        android:layout_alignEnd="@+id/button_send_text"
+        android:layout_alignEnd="@+id/button_write"
         android:layout_alignBottom="@+id/text_auto_send_value" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Read"
+        android:id="@+id/button_read"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentStart="true"
+        android:layout_marginBottom="36dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:text="Read"
+        android:id="@+id/text_read"
+        android:layout_below="@+id/toggle_auto"
+        android:layout_alignParentStart="true"
+        android:layout_marginTop="38dp" />
 
 </RelativeLayout>

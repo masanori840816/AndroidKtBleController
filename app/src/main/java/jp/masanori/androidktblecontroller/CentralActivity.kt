@@ -39,6 +39,7 @@ class CentralActivity : FragmentActivity() {
     private var bleCharacteristic: BluetoothGattCharacteristic? = null
     private final var locationAccesser = LocationAccesser()
     private var textReceived: TextView? = null
+    private var textRead: TextView? = null
     private final var REQUEST_NUM_BLE_ON = 1
 
     fun onGpsEnabled(){
@@ -54,10 +55,16 @@ class CentralActivity : FragmentActivity() {
 
         textReceived = findViewById(R.id.text_received) as TextView
 
-        var editTextSend = findViewById(R.id.edittext_send) as EditText
-        var buttonSendText = findViewById(R.id.button_send_text) as Button
-        buttonSendText!!.setOnClickListener {
-            sendText(editTextSend.text.toString())
+        var editTextWrite = findViewById(R.id.edittext_write) as EditText
+        var buttonWrite = findViewById(R.id.button_write) as Button
+        buttonWrite!!.setOnClickListener {
+            writeText(editTextWrite.text.toString())
+        }
+
+        textRead = findViewById(R.id.text_read) as TextView
+        var buttonRead = findViewById(R.id.button_read) as Button
+        buttonRead!!.setOnClickListener{
+            readText()
         }
         // BluetoothがOffならインテントを表示する.
         if(bleAdapter!!.isEnabled) {
@@ -140,6 +147,8 @@ class CentralActivity : FragmentActivity() {
                     // キャラクタリスティックが見つかったら、Notificationをリクエスト.
                     bleGatt!!.setCharacteristicNotification(bleCharacteristic, true)
 
+
+
                     // Characteristic の Notificationを有効化する.
                     var _bleDescriptor: BluetoothGattDescriptor = bleCharacteristic!!.getDescriptor(UUID.fromString(getString(R.string.uuid_characteristic_config)))
 
@@ -162,6 +171,14 @@ class CentralActivity : FragmentActivity() {
                 }
             }
         }
+        override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int){
+            if (getString(R.string.uuid_characteristic).equals(characteristic.getUuid().toString().toUpperCase())){
+                // Peripheralから値を読み込んだらメインスレッドでTextViewに値をセットする.
+                runOnUiThread {
+                    textRead!!.text = characteristic.getStringValue(0)
+                }
+            }
+        }
     }
     private final val bleScanCallback: ScanCallback = object : ScanCallback(){
         override fun onScanResult(callbackType: Int, result: ScanResult) {
@@ -176,8 +193,13 @@ class CentralActivity : FragmentActivity() {
     };
     private var broadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context : Context?, intent : Intent?){
-            bleGatt = null
-            scanNewDevice()
+            when(intent!!.action){
+                BluetoothDevice.ACTION_ACL_CONNECTED -> {
+                    bleGatt = null
+                    scanNewDevice()
+                }
+            }
+
         }
     }
     private fun scanNewDevice(){
@@ -214,12 +236,19 @@ class CentralActivity : FragmentActivity() {
         // デバイスの検出.
         bleScanner!!.startScan(listOf(filter!!), setting!!, bleScanCallback)
     }
-    private fun sendText(sendValue: String){
+    private fun writeText(sendValue: String){
         // 1台以上接続されていれば書き込みリクエストを送る.
         if(bleManager!!.getConnectedDevices(BluetoothProfile.GATT).isEmpty()){
            return
         }
         bleCharacteristic!!.value = sendValue.toByteArray()
         bleGatt!!.writeCharacteristic(bleCharacteristic)
+    }
+    private fun readText(){
+        // 1台以上接続されていれば書き込みリクエストを送る.
+        if(bleManager!!.getConnectedDevices(BluetoothProfile.GATT).isEmpty()){
+            return
+        }
+        bleGatt!!.readCharacteristic(bleCharacteristic)
     }
 }
