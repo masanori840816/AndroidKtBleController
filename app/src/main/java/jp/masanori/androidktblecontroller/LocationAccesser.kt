@@ -6,17 +6,13 @@ package jp.masanori.androidktblecontroller
 
 import android.content.IntentSender
 import android.os.Bundle
-import android.support.v4.app.FragmentActivity
 import android.support.v7.app.AlertDialog
 
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.api.GoogleApiClient
-import com.google.android.gms.common.api.PendingResult
-import com.google.android.gms.common.api.Status
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.LocationSettingsRequest
-import com.google.android.gms.location.LocationSettingsResult
 import com.google.android.gms.location.LocationSettingsStatusCodes
 
 class LocationAccesser : GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {

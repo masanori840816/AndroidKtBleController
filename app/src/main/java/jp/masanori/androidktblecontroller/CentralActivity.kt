@@ -147,11 +147,8 @@ class CentralActivity : FragmentActivity() {
                     // キャラクタリスティックが見つかったら、Notificationをリクエスト.
                     bleGatt!!.setCharacteristicNotification(bleCharacteristic, true)
 
-
-
                     // Characteristic の Notificationを有効化する.
                     var _bleDescriptor: BluetoothGattDescriptor = bleCharacteristic!!.getDescriptor(UUID.fromString(getString(R.string.uuid_characteristic_config)))
-
 
                     _bleDescriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
                     bleGatt!!.writeDescriptor(_bleDescriptor)

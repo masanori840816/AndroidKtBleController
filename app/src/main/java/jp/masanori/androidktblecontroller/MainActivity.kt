@@ -20,7 +20,7 @@ class MainActivity : AppCompatActivity() {
 
         // デバイスがBLEに対応していなければトースト表示.
         if (!packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
-            Toast.makeText(this, R.string.ble_not_supported, Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.ble_is_not_supported, Toast.LENGTH_SHORT).show()
             finish()
         }
         // Android6.0以降なら権限確認.
@@ -31,7 +31,7 @@ class MainActivity : AppCompatActivity() {
             isPermissionAllowed = true;
         }
         var buttonCentral = findViewById(R.id.button_central) as Button
-        buttonCentral!!.setOnClickListener{
+        buttonCentral.setOnClickListener{
             if(isPermissionAllowed){
                 var intentCentral = Intent(this, CentralActivity::class.java)
                 startActivity(intentCentral)
@@ -39,6 +39,11 @@ class MainActivity : AppCompatActivity() {
             else if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 this.requestBlePermission()
             }
+        }
+        var buttonPeripheral = findViewById(R.id.button_peripheral) as Button
+        buttonPeripheral.setOnClickListener{
+            var intentPeripheral = Intent(this, PeripheralActivity::class.java)
+            startActivity(intentPeripheral)
         }
     }
     @TargetApi(Build.VERSION_CODES.M)

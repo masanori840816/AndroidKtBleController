@@ -9,4 +9,41 @@
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context="jp.masanori.androidktblecontroller.PeripheralActivity">
 
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:text="Received"
+        android:id="@+id/text_peripheral_received"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentStart="true" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Update"
+        android:id="@+id/button_peripheral_update"
+        android:layout_centerVertical="true"
+        android:layout_alignParentStart="true" />
+
+    <EditText
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:inputType="textMultiLine"
+        android:ems="10"
+        android:id="@+id/edit_peripheral_update_value"
+        android:layout_above="@id/button_peripheral_update"
+        android:layout_marginBottom="50dp"
+        android:layout_alignParentStart="true" />
+
+    <EditText
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:inputType="textMultiLine"
+        android:ems="10"
+        android:id="@+id/edit_peripheral_read_value"
+        android:layout_below="@id/button_peripheral_update"
+        android:layout_alignParentStart="true"
+        android:layout_marginTop="47dp" />
+
 </RelativeLayout>
