@@ -13,53 +13,42 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:textAppearance="?android:attr/textAppearanceLarge"
-        android:text="Received"
-        android:id="@+id/text_received"
+        android:text="isConnect"
+        android:id="@+id/text_central_isconnect"
         android:layout_alignParentTop="true"
-        android:layout_alignParentStart="true"
-        android:layout_marginTop="66dp" />
-
+        android:layout_alignParentEnd="true" />
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:textAppearance="?android:attr/textAppearanceLarge"
-        android:text="Send Value"
-        android:id="@+id/text_auto_send_value"
-        android:layout_below="@+id/text_received"
-        android:layout_alignParentStart="true"
-        android:layout_marginTop="37dp" />
-
-    <ToggleButton
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Auto"
-        android:id="@+id/toggle_auto"
-        android:layout_centerVertical="true"
+        android:text="Received"
+        android:id="@+id/text_central_received"
+        android:layout_below="@+id/text_central_isconnect"
         android:layout_alignParentStart="true" />
 
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Write"
-        android:id="@+id/button_write"
+        android:id="@+id/button_central_write"
         android:layout_centerVertical="true"
-        android:layout_alignParentEnd="true" />
+        android:layout_alignParentStart="true" />
 
     <EditText
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:inputType="textMultiLine"
         android:ems="10"
-        android:id="@+id/edittext_write"
-        android:layout_alignTop="@+id/text_received"
-        android:layout_alignEnd="@+id/button_write"
-        android:layout_alignBottom="@+id/text_auto_send_value" />
+        android:id="@+id/edit_central_write"
+        android:layout_above="@+id/button_central_write"
+        android:layout_alignParentStart="true"
+        android:layout_marginBottom="44dp" />
 
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Read"
-        android:id="@+id/button_read"
+        android:id="@+id/button_central_read"
         android:layout_alignParentBottom="true"
         android:layout_alignParentStart="true"
         android:layout_marginBottom="36dp" />
@@ -69,9 +58,9 @@
         android:layout_height="wrap_content"
         android:textAppearance="?android:attr/textAppearanceMedium"
         android:text="Read"
-        android:id="@+id/text_read"
-        android:layout_below="@+id/toggle_auto"
-        android:layout_alignParentStart="true"
-        android:layout_marginTop="38dp" />
+        android:id="@+id/text_central_read"
+        android:layout_marginTop="47dp"
+        android:layout_below="@+id/button_central_write"
+        android:layout_alignParentStart="true" />
 
 </RelativeLayout>

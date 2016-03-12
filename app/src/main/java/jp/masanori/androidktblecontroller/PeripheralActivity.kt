@@ -144,8 +144,6 @@ class PeripheralActivity : FragmentActivity() {
             characteristic.value = value
             runOnUiThread {
                 textReceivedValue?.text = characteristic.getStringValue(offset)
-
-                Log.d("Peripheral" , textReceivedValue?.text.toString())
             }
             if(responseNeeded){
                 bleGattServer!!.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS

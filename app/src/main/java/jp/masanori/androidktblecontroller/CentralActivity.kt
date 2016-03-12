@@ -1,8 +1,8 @@
 package jp.masanori.androidktblecontroller
 
+import android.Manifest
 import android.annotation.TargetApi
 import android.app.Activity
-import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
@@ -21,26 +21,30 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.ParcelUuid
 import android.support.v4.app.FragmentActivity
 import android.util.Log
-import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import java.util.UUID
 
 class CentralActivity : FragmentActivity() {
+    private final enum class RequestNum(var num: Int){
+        PERMISSION_LOCATION(0)
+        , BLE_ON(1)
+    }
     private var bleManager: BluetoothManager? = null
     private var bleAdapter: BluetoothAdapter? = null
     private var bleScanner: BluetoothLeScanner? = null
     private var bleGatt: BluetoothGatt? = null
     private var bleCharacteristic: BluetoothGattCharacteristic? = null
     private final var locationAccesser = LocationAccesser()
+    private var textIsConnected: TextView? = null
     private var textReceived: TextView? = null
     private var textRead: TextView? = null
-    private final var REQUEST_NUM_BLE_ON = 1
 
     fun onGpsEnabled(){
         // 2016.03.08現在GPSを求めるのはAndroid6.0以上のみ.
@@ -53,26 +57,27 @@ class CentralActivity : FragmentActivity() {
         bleManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         bleAdapter = bleManager!!.adapter
 
-        textReceived = findViewById(R.id.text_received) as TextView
+        textIsConnected = findViewById(R.id.text_central_isconnect) as TextView
+        textReceived = findViewById(R.id.text_central_received) as TextView
 
-        var editTextWrite = findViewById(R.id.edittext_write) as EditText
-        var buttonWrite = findViewById(R.id.button_write) as Button
-        buttonWrite!!.setOnClickListener {
+        var editTextWrite = findViewById(R.id.edit_central_write) as EditText
+        var buttonWrite = findViewById(R.id.button_central_write) as Button
+        buttonWrite.setOnClickListener {
             writeText(editTextWrite.text.toString())
         }
 
-        textRead = findViewById(R.id.text_read) as TextView
-        var buttonRead = findViewById(R.id.button_read) as Button
-        buttonRead!!.setOnClickListener{
+        textRead = findViewById(R.id.text_central_read) as TextView
+        var buttonRead = findViewById(R.id.button_central_read) as Button
+        buttonRead.setOnClickListener{
             readText()
         }
-        // BluetoothがOffならインテントを表示する.
-        if(bleAdapter!!.isEnabled) {
-            scanNewDevice()
+        // Android6.0以降なら権限確認.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            requestBlePermission()
         }
         else{
-            // Intentでボタンを押すとonActivityResultが実行されるので、第二引数の番号を元に処理を行う.
-            startActivityForResult(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE), REQUEST_NUM_BLE_ON)
+            // BluetoothがOnかを確認.
+            requestBleOn()
         }
         //
         registerReceiver(broadcastReceiver, IntentFilter(BluetoothDevice.ACTION_ACL_CONNECTED))
@@ -81,7 +86,7 @@ class CentralActivity : FragmentActivity() {
         // Intentでユーザーがボタンを押したら実行.
         super.onActivityResult(requestCode, resultCode, data)
         when(requestCode) {
-            REQUEST_NUM_BLE_ON -> {
+            RequestNum.BLE_ON.num -> {
                 if(bleAdapter!!.isEnabled()){
                     // BLEが使用可能ならスキャン開始.
                     scanNewDevice()
@@ -91,6 +96,20 @@ class CentralActivity : FragmentActivity() {
                 if(resultCode == Activity.RESULT_OK){
                     onGpsEnabled()
                 }
+            }
+        }
+    }
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        // 権限リクエストの結果を取得する.
+        when(requestCode){
+            RequestNum.PERMISSION_LOCATION.num -> {
+                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    // 権限が付与されたらBluetoothがOnかを確認.
+                    requestBleOn()
+                }
+            }
+            else ->{
+                super.onRequestPermissionsResult(requestCode, permissions, grantResults)
             }
         }
     }
@@ -115,6 +134,28 @@ class CentralActivity : FragmentActivity() {
             }
             bleGatt = null
         }
+        textIsConnected?.text = resources.getString(R.string.ble_status_disconnected)
+    }
+    @TargetApi(Build.VERSION_CODES.M)
+    private fun requestBlePermission() {
+        if (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            // 権限が付与されたらBluetoothがOnかを確認.
+            requestBleOn()
+        }
+        else{
+            // 権限が付与されていない場合はリクエスト.
+            requestPermissions(arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION), RequestNum.PERMISSION_LOCATION.num)
+        }
+    }
+    private fun requestBleOn(){
+        // BluetoothがOffならインテントを表示する.
+        if(bleAdapter!!.isEnabled) {
+            scanNewDevice()
+        }
+        else{
+            // Intentでボタンを押すとonActivityResultが実行されるので、第二引数の番号を元に処理を行う.
+            startActivityForResult(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE), RequestNum.BLE_ON.num)
+        }
     }
     private final val bleGattCallback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, stateNum: Int) {
@@ -127,6 +168,7 @@ class CentralActivity : FragmentActivity() {
                 BluetoothProfile.STATE_DISCONNECTED ->{
                     // 接続が切れたらGATTを空にする.
                     bleGatt!!.close()
+                    textIsConnected?.text = resources.getString(R.string.ble_status_disconnected)
                 }
             }
         }
@@ -154,6 +196,7 @@ class CentralActivity : FragmentActivity() {
                     bleGatt!!.writeDescriptor(_bleDescriptor)
                     // 接続が終わったらScanを止める.
                     bleScanner!!.stopScan(bleScanCallback!!)
+                    textIsConnected?.text = resources.getString(R.string.ble_status_connected)
                 }
             }
         }
@@ -196,7 +239,6 @@ class CentralActivity : FragmentActivity() {
                     scanNewDevice()
                 }
             }
-
         }
     }
     private fun scanNewDevice(){

@@ -6,4 +6,6 @@
     <string name="uuid_characteristic">7F855F82-9378-4508-A3D2-CD989104AF22</string>
     <string name="uuid_characteristic_config">00002902-0000-1000-8000-00805f9b34fb</string>
     <string name="error_title">Error</string>
+    <string name="ble_status_connected">Connected</string>
+    <string name="ble_status_disconnected">Disconnected</string>
 </resources>
