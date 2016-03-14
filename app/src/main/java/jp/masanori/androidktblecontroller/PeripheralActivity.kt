@@ -15,8 +15,10 @@ import android.bluetooth.le.AdvertiseData
 import android.bluetooth.le.AdvertiseSettings
 import android.os.Bundle
 import android.bluetooth.le.BluetoothLeAdvertiser
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
 import android.os.ParcelUuid
 import android.support.v4.app.FragmentActivity
@@ -35,16 +37,21 @@ class PeripheralActivity : FragmentActivity() {
     private var bleAdvertiser: BluetoothLeAdvertiser? = null
     private var bleCharacteristic: BluetoothGattCharacteristic? = null
     private var bleGattServer: BluetoothGattServer? = null
+    private var bluetoothLeAdvertiser: BluetoothLeAdvertiser? = null
+    private var textIsConnected: TextView? = null
     private var textReceivedValue: TextView? = null
     private var editUpdateValue: EditText? = null
     private var editReadValue: EditText? = null
     private final var REQUEST_NUM_BLE_ON = 1
     private var isConnected: Boolean = false
+    private var stringValueBuilder: StringBuilder? = null
+    private var writeStringValue: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_peripheral)
 
+        textIsConnected = findViewById(R.id.text_peripheral_isconnect) as TextView
         editUpdateValue = findViewById(R.id.edit_peripheral_update_value) as EditText
         editReadValue = findViewById(R.id.edit_peripheral_read_value) as EditText
         textReceivedValue = findViewById(R.id.text_peripheral_received) as TextView
@@ -65,11 +72,26 @@ class PeripheralActivity : FragmentActivity() {
                 // Intentでボタンを押すとonActivityResultが実行されるので、第二引数の番号を元に処理を行う.
                 startActivityForResult(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE), REQUEST_NUM_BLE_ON)
             }
+            registerReceiver(broadcastReceiver, IntentFilter(BluetoothDevice.ACTION_ACL_CONNECTED))
         }
         else{
             // OS ver.5.0未満はPeripheralに対応していない.
             Toast.makeText(this, R.string.peripheral_is_not_supported, Toast.LENGTH_SHORT).show()
         }
+    }
+    override fun onPause(){
+        super.onPause()
+        unregisterReceiver(broadcastReceiver)
+    }
+    override fun onResume(){
+        super.onResume()
+        registerReceiver(broadcastReceiver, IntentFilter(BluetoothDevice.ACTION_ACL_CONNECTED))
+    }
+    override fun onDestroy(){
+        super.onDestroy()
+        stringValueBuilder?.delete(0, stringValueBuilder!!.length)
+        bleAdvertiser?.stopAdvertising(advertiseCallback)
+        bleGattServer?.close()
     }
     private fun startAdvertising(){
         bleAdvertiser = bleAdapter!!.bluetoothLeAdvertiser
@@ -105,21 +127,16 @@ class PeripheralActivity : FragmentActivity() {
             advertiseDataBuilder.addServiceUuid(ParcelUuid.fromString(resources.getString(R.string.uuid_service)))
 
             // Advertiseの開始.
-            var bluetoothLeAdvertiser = bleAdapter?.getBluetoothLeAdvertiser()
-            bluetoothLeAdvertiser?.startAdvertising(advertiseSettingsBuilder.build(), advertiseDataBuilder.build()
-                    , object: AdvertiseCallback(){
-                override fun onStartSuccess(settingsInEffect: AdvertiseSettings){
-                }
-                override fun onStartFailure(errorCode: Int){
-                }
-            });
+            bluetoothLeAdvertiser = bleAdapter?.bluetoothLeAdvertiser
+            bluetoothLeAdvertiser?.startAdvertising(advertiseSettingsBuilder.build(), advertiseDataBuilder.build(), advertiseCallback)
+
+            stringValueBuilder = StringBuilder()
         }
     }
     private final val bleGattServerCallback = object: BluetoothGattServerCallback(){
         override fun onServiceAdded(status: Int, service: BluetoothGattService){
             when(status){
                 BluetoothGatt.GATT_SUCCESS -> {
-
                 }
             }
         }
@@ -128,10 +145,16 @@ class PeripheralActivity : FragmentActivity() {
                 BluetoothProfile.STATE_CONNECTED ->{
                     bleDevice = device
                     isConnected = true
+                    runOnUiThread {
+                        textIsConnected?.text = resources.getString(R.string.ble_status_connected)
+                    }
                 }
                 BluetoothProfile.STATE_DISCONNECTED ->{
                     bleDevice = null
                     isConnected = false
+                    runOnUiThread {
+                        textIsConnected?.text = resources.getString(R.string.ble_status_disconnected)
+                    }
                 }
             }
         }
@@ -142,12 +165,22 @@ class PeripheralActivity : FragmentActivity() {
 
             // Central側から受け取った値をCharacteristicにセットしてTextViewに入れる.
             characteristic.value = value
-            runOnUiThread {
-                textReceivedValue?.text = characteristic.getStringValue(offset)
+
+            writeStringValue = characteristic.getStringValue(offset)
+
+            if(writeStringValue!!.equals(resources.getString(R.string.ble_stop_sending_data))){
+                runOnUiThread {
+                    textReceivedValue?.text = stringValueBuilder!!.toString()
+                    stringValueBuilder?.delete(0, stringValueBuilder!!.length)
+                }
             }
+            else{
+                stringValueBuilder?.append(writeStringValue)
+            }
+            Log.d("BLE", "value:" + writeStringValue)
+            Log.d("BLE", "builder:" + stringValueBuilder?.toString())
             if(responseNeeded){
-                bleGattServer!!.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS
-                        , 0, value)
+                bleGattServer!!.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, value)
             }
         }
         override fun onDescriptorWriteRequest(device: BluetoothDevice, requestId: Int, descriptor: BluetoothGattDescriptor
@@ -156,17 +189,30 @@ class PeripheralActivity : FragmentActivity() {
             super.onDescriptorWriteRequest(device, requestId, descriptor, preparedWrite, responseNeeded, offset, value)
 
             if(responseNeeded){
-                bleGattServer!!.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS
-                        , 0, value)
+                bleGattServer!!.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, value)
             }
         }
         override fun onCharacteristicReadRequest(device: BluetoothDevice, requestId: Int, offset: Int
                                                   , characteristic: BluetoothGattCharacteristic){
             super.onCharacteristicReadRequest(device, requestId, offset, characteristic)
-
             bleCharacteristic!!.value = editReadValue.toString().toByteArray()
             bleGattServer!!.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS
                     , 0, bleCharacteristic!!.value)
+        }
+    }
+    private var broadcastReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context : Context?, intent : Intent?){
+            when(intent!!.action){
+                BluetoothDevice.ACTION_ACL_CONNECTED -> {
+                    startAdvertising()
+                }
+            }
+        }
+    }
+    private var advertiseCallback = object: AdvertiseCallback(){
+        override fun onStartSuccess(settingsInEffect: AdvertiseSettings){
+        }
+        override fun onStartFailure(errorCode: Int){
         }
     }
     private fun updateValue(newValue: String){

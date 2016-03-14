@@ -31,7 +31,7 @@ import android.widget.EditText
 import android.widget.TextView
 import java.util.UUID
 
-class CentralActivity : FragmentActivity() {
+class CentralActivity : FragmentActivity(){
     private final enum class RequestNum(var num: Int){
         PERMISSION_LOCATION(0)
         , BLE_ON(1)
@@ -45,9 +45,17 @@ class CentralActivity : FragmentActivity() {
     private var textIsConnected: TextView? = null
     private var textReceived: TextView? = null
     private var textRead: TextView? = null
+    private var writeOriginalByteArray: ByteArray? = null
+    private var writeByteArray: ByteArray? = null
+    private var writeValueLengthFrom = 0
+    private var writeValueLengthTo = 0
+    private var isConntected = false
+    private var isWritingData = false
+    private final val SEND_VALUE_LENGTH = 20
 
     fun onGpsEnabled(){
-        // 2016.03.08現在GPSを求めるのはAndroid6.0以上のみ.
+        // 2016.03.08現在GPSを求めるのはOS ver.6.0以上のみ.
+        // GPSがONになったらScan開始.
         startScanByBleScanner()
     }
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -63,13 +71,21 @@ class CentralActivity : FragmentActivity() {
         var editTextWrite = findViewById(R.id.edit_central_write) as EditText
         var buttonWrite = findViewById(R.id.button_central_write) as Button
         buttonWrite.setOnClickListener {
-            writeText(editTextWrite.text.toString())
+            if(isConntected) {
+                writeOriginalByteArray = editTextWrite.text.toString().toByteArray(Charsets.UTF_8)
+                writeValueLengthTo = 0
+                isWritingData = true
+                writeText(resources.getString(R.string.ble_stop_sending_data).toByteArray(Charsets.UTF_8))
+            }
         }
 
         textRead = findViewById(R.id.text_central_read) as TextView
         var buttonRead = findViewById(R.id.button_central_read) as Button
         buttonRead.setOnClickListener{
-            readText()
+            if(isConntected){
+                readText()
+            }
+
         }
         // Android6.0以降なら権限確認.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -79,7 +95,6 @@ class CentralActivity : FragmentActivity() {
             // BluetoothがOnかを確認.
             requestBleOn()
         }
-        //
         registerReceiver(broadcastReceiver, IntentFilter(BluetoothDevice.ACTION_ACL_CONNECTED))
     }
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?){
@@ -120,6 +135,10 @@ class CentralActivity : FragmentActivity() {
     override fun onResume(){
         super.onResume()
         registerReceiver(broadcastReceiver, IntentFilter(BluetoothDevice.ACTION_ACL_CONNECTED))
+        if(! isConntected){
+            bleGatt = null
+            scanNewDevice()
+        }
     }
     override fun onDestroy(){
         super.onDestroy()
@@ -134,6 +153,7 @@ class CentralActivity : FragmentActivity() {
             }
             bleGatt = null
         }
+        isConntected = false
         textIsConnected?.text = resources.getString(R.string.ble_status_disconnected)
     }
     @TargetApi(Build.VERSION_CODES.M)
@@ -168,7 +188,10 @@ class CentralActivity : FragmentActivity() {
                 BluetoothProfile.STATE_DISCONNECTED ->{
                     // 接続が切れたらGATTを空にする.
                     bleGatt!!.close()
-                    textIsConnected?.text = resources.getString(R.string.ble_status_disconnected)
+                    isConntected = false
+                    runOnUiThread {
+                        textIsConnected?.text = resources.getString(R.string.ble_status_disconnected)
+                    }
                 }
             }
         }
@@ -196,11 +219,14 @@ class CentralActivity : FragmentActivity() {
                     bleGatt!!.writeDescriptor(_bleDescriptor)
                     // 接続が終わったらScanを止める.
                     bleScanner!!.stopScan(bleScanCallback!!)
-                    textIsConnected?.text = resources.getString(R.string.ble_status_connected)
+                    isConntected = true
+                    runOnUiThread {
+                        textIsConnected?.text = resources.getString(R.string.ble_status_connected)
+                    }
+
                 }
             }
         }
-
         override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
             // キャラクタリスティックのUUIDをチェック(getUuidの結果が全て小文字で帰ってくるのでUpperCaseに変換)
             if (getString(R.string.uuid_characteristic).equals(characteristic.getUuid().toString().toUpperCase())){
@@ -211,7 +237,37 @@ class CentralActivity : FragmentActivity() {
                 }
             }
         }
+        override fun onCharacteristicWrite(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int){
+            super.onCharacteristicWrite(gatt, characteristic, status)
+            writeValueLengthFrom = writeValueLengthTo
+
+            if(! isWritingData){
+                return
+            }
+            if(writeOriginalByteArray!!.size <= writeValueLengthFrom){
+                writeText(resources.getString(R.string.ble_stop_sending_data).toByteArray(Charsets.UTF_8))
+                isWritingData = false
+                return
+            }
+            if(writeOriginalByteArray!!.size <= (writeValueLengthTo + SEND_VALUE_LENGTH)){
+                writeValueLengthTo = writeOriginalByteArray!!.size
+            }
+            else{
+                writeValueLengthTo += SEND_VALUE_LENGTH
+            }
+            var i = writeValueLengthFrom
+            var t = 0
+            writeByteArray = ByteArray(writeValueLengthTo - writeValueLengthFrom)
+
+            while(i < writeValueLengthTo){
+                writeByteArray!![t] = writeOriginalByteArray!![i]
+                i++
+                t++
+            }
+            writeText(writeByteArray!!)
+        }
         override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int){
+            super.onCharacteristicRead(gatt, characteristic, status)
             if (getString(R.string.uuid_characteristic).equals(characteristic.getUuid().toString().toUpperCase())){
                 // Peripheralから値を読み込んだらメインスレッドでTextViewに値をセットする.
                 runOnUiThread {
@@ -255,7 +311,7 @@ class CentralActivity : FragmentActivity() {
             bleAdapter!!.startLeScan({
                 bluetoothDevice, i, bytes -> run{
                     runOnUiThread {
-                        bleGatt = bluetoothDevice.connectGatt(getApplicationContext(), false, bleGattCallback) as BluetoothGatt
+                        bleGatt = bluetoothDevice.connectGatt(applicationContext, false, bleGattCallback) as BluetoothGatt
                     }
                 }
             })
@@ -273,14 +329,14 @@ class CentralActivity : FragmentActivity() {
                 .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
                 .build()
         // デバイスの検出.
-        bleScanner!!.startScan(listOf(filter!!), setting!!, bleScanCallback)
+        bleScanner!!.startScan(listOf(filter), setting, bleScanCallback)
     }
-    private fun writeText(sendValue: String){
+    private fun writeText(sendValue: ByteArray){
         // 1台以上接続されていれば書き込みリクエストを送る.
         if(bleManager!!.getConnectedDevices(BluetoothProfile.GATT).isEmpty()){
            return
         }
-        bleCharacteristic!!.value = sendValue.toByteArray()
+        bleCharacteristic!!.value = sendValue
         bleGatt!!.writeCharacteristic(bleCharacteristic)
     }
     private fun readText(){

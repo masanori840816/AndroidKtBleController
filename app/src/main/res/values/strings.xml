@@ -8,4 +8,5 @@
     <string name="error_title">Error</string>
     <string name="ble_status_connected">Connected</string>
     <string name="ble_status_disconnected">Disconnected</string>
+    <string name="ble_stop_sending_data">STOP_SENDING_DATA</string>
 </resources>
