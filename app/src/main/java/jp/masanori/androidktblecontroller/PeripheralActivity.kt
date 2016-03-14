@@ -31,6 +31,9 @@ import java.util.UUID
 
 class PeripheralActivity : FragmentActivity() {
 
+    private final val REQUEST_NUM_BLE_ON = 1
+    private final val SEND_VALUE_LENGTH = 20
+
     private var bleManager: BluetoothManager? = null
     private var bleAdapter: BluetoothAdapter? = null
     private var bleDevice: BluetoothDevice? = null
@@ -42,10 +45,14 @@ class PeripheralActivity : FragmentActivity() {
     private var textReceivedValue: TextView? = null
     private var editUpdateValue: EditText? = null
     private var editReadValue: EditText? = null
-    private final var REQUEST_NUM_BLE_ON = 1
     private var isConnected: Boolean = false
-    private var stringValueBuilder: StringBuilder? = null
-    private var writeStringValue: String? = null
+    private var writeValue: ByteArray? = null
+
+    private var readOriginalByteArray: ByteArray? = null
+    private var readByteArray: ByteArray? = null
+    private var readValueLengthFrom = 0
+    private var readValueLengthTo = 0
+    private var isReadData = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,6 +62,8 @@ class PeripheralActivity : FragmentActivity() {
         editUpdateValue = findViewById(R.id.edit_peripheral_update_value) as EditText
         editReadValue = findViewById(R.id.edit_peripheral_read_value) as EditText
         textReceivedValue = findViewById(R.id.text_peripheral_received) as TextView
+
+        writeValue = emptyArray<Byte>().toByteArray()
 
         var buttonUpdate = findViewById(R.id.button_peripheral_update) as Button
         buttonUpdate.setOnClickListener{
@@ -89,7 +98,8 @@ class PeripheralActivity : FragmentActivity() {
     }
     override fun onDestroy(){
         super.onDestroy()
-        stringValueBuilder?.delete(0, stringValueBuilder!!.length)
+        isReadData = false
+        writeValue = emptyArray<Byte>().toByteArray()
         bleAdvertiser?.stopAdvertising(advertiseCallback)
         bleGattServer?.close()
     }
@@ -129,8 +139,6 @@ class PeripheralActivity : FragmentActivity() {
             // Advertiseの開始.
             bluetoothLeAdvertiser = bleAdapter?.bluetoothLeAdvertiser
             bluetoothLeAdvertiser?.startAdvertising(advertiseSettingsBuilder.build(), advertiseDataBuilder.build(), advertiseCallback)
-
-            stringValueBuilder = StringBuilder()
         }
     }
     private final val bleGattServerCallback = object: BluetoothGattServerCallback(){
@@ -166,19 +174,17 @@ class PeripheralActivity : FragmentActivity() {
             // Central側から受け取った値をCharacteristicにセットしてTextViewに入れる.
             characteristic.value = value
 
-            writeStringValue = characteristic.getStringValue(offset)
-
-            if(writeStringValue!!.equals(resources.getString(R.string.ble_stop_sending_data))){
+            if(characteristic.getStringValue(offset)!!.equals(resources.getString(R.string.ble_stop_sending_data))){
                 runOnUiThread {
-                    textReceivedValue?.text = stringValueBuilder!!.toString()
-                    stringValueBuilder?.delete(0, stringValueBuilder!!.length)
+                    //textReceivedValue?.text = stringValueBuilder!!.toString()
+                    textReceivedValue?.text = writeValue?.toString(Charsets.UTF_8)
+
+                    writeValue = emptyArray<Byte>().toByteArray()
                 }
             }
             else{
-                stringValueBuilder?.append(writeStringValue)
+                writeValue = writeValue!!.plus(characteristic.value)
             }
-            Log.d("BLE", "value:" + writeStringValue)
-            Log.d("BLE", "builder:" + stringValueBuilder?.toString())
             if(responseNeeded){
                 bleGattServer!!.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, value)
             }
@@ -195,9 +201,44 @@ class PeripheralActivity : FragmentActivity() {
         override fun onCharacteristicReadRequest(device: BluetoothDevice, requestId: Int, offset: Int
                                                   , characteristic: BluetoothGattCharacteristic){
             super.onCharacteristicReadRequest(device, requestId, offset, characteristic)
-            bleCharacteristic!!.value = editReadValue.toString().toByteArray()
+
+            if(isReadData){
+                readValueLengthFrom = readValueLengthTo
+                if(readOriginalByteArray!!.size <= readValueLengthFrom){
+                    readByteArray = resources.getString(R.string.ble_stop_sending_data).toByteArray(Charsets.UTF_8)
+                    isReadData = false
+                }
+                else{
+                    createReadData()
+                }
+            }
+            else{
+                readOriginalByteArray = editReadValue!!.text.toString().toByteArray(Charsets.UTF_8)
+                readValueLengthFrom = 0
+                createReadData()
+                isReadData = true
+            }
+
+            bleCharacteristic!!.value = readByteArray
             bleGattServer!!.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS
                     , 0, bleCharacteristic!!.value)
+        }
+    }
+    private fun createReadData(){
+        if (readOriginalByteArray!!.size <= readValueLengthFrom + SEND_VALUE_LENGTH){
+            readValueLengthTo = readOriginalByteArray!!.size
+        }
+        else{
+            readValueLengthTo = readValueLengthFrom + SEND_VALUE_LENGTH
+        }
+        var i = readValueLengthFrom
+        var t = 0
+        readByteArray = ByteArray(readValueLengthTo - readValueLengthFrom)
+
+        while(i < readValueLengthTo){
+            readByteArray!![t] = readOriginalByteArray!![i]
+            i++
+            t++
         }
     }
     private var broadcastReceiver = object : BroadcastReceiver() {

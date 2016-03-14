@@ -32,7 +32,7 @@ import android.widget.TextView
 import java.util.UUID
 
 class CentralActivity : FragmentActivity(){
-    private final enum class RequestNum(var num: Int){
+    private enum class RequestNum(var num: Int){
         PERMISSION_LOCATION(0)
         , BLE_ON(1)
     }
@@ -52,6 +52,7 @@ class CentralActivity : FragmentActivity(){
     private var isConntected = false
     private var isWritingData = false
     private final val SEND_VALUE_LENGTH = 20
+    private var readValue: ByteArray? = null
 
     fun onGpsEnabled(){
         // 2016.03.08現在GPSを求めるのはOS ver.6.0以上のみ.
@@ -87,7 +88,7 @@ class CentralActivity : FragmentActivity(){
             }
 
         }
-        // Android6.0以降なら権限確認.
+        // OS ver.6.0以降なら権限確認.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             requestBlePermission()
         }
@@ -96,6 +97,8 @@ class CentralActivity : FragmentActivity(){
             requestBleOn()
         }
         registerReceiver(broadcastReceiver, IntentFilter(BluetoothDevice.ACTION_ACL_CONNECTED))
+
+        readValue = emptyArray<Byte>().toByteArray()
     }
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?){
         // Intentでユーザーがボタンを押したら実行.
@@ -223,7 +226,6 @@ class CentralActivity : FragmentActivity(){
                     runOnUiThread {
                         textIsConnected?.text = resources.getString(R.string.ble_status_connected)
                     }
-
                 }
             }
         }
@@ -239,12 +241,14 @@ class CentralActivity : FragmentActivity(){
         }
         override fun onCharacteristicWrite(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int){
             super.onCharacteristicWrite(gatt, characteristic, status)
+            // 20byteごとに分割して送信.
             writeValueLengthFrom = writeValueLengthTo
 
             if(! isWritingData){
                 return
             }
             if(writeOriginalByteArray!!.size <= writeValueLengthFrom){
+                // すべて送信したら完了通知用の文字列を送信する.
                 writeText(resources.getString(R.string.ble_stop_sending_data).toByteArray(Charsets.UTF_8))
                 isWritingData = false
                 return
@@ -268,11 +272,21 @@ class CentralActivity : FragmentActivity(){
         }
         override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int){
             super.onCharacteristicRead(gatt, characteristic, status)
-            if (getString(R.string.uuid_characteristic).equals(characteristic.getUuid().toString().toUpperCase())){
-                // Peripheralから値を読み込んだらメインスレッドでTextViewに値をセットする.
-                runOnUiThread {
-                    textRead!!.text = characteristic.getStringValue(0)
+            if (getString(R.string.uuid_characteristic).equals(characteristic.uuid.toString().toUpperCase())){
+                if(characteristic.getStringValue(0).equals(resources.getString(R.string.ble_stop_sending_data))){
+                    runOnUiThread {
+                        // 送信完了の文字列を受け取ったらUIスレッドでTextViewに値をセットする.
+                        textRead!!.text = readValue?.toString(Charsets.UTF_8)
+                        readValue = emptyArray<Byte>().toByteArray()
+                    }
                 }
+                else{
+                    // Peripheralから値を読み込んだらByteArray型で追加.
+                    readValue = readValue!!.plus(characteristic.value)
+                    // 送信完了の文字列が届くまで読み込みリクエストを送る.
+                    readText()
+                }
+
             }
         }
     }
