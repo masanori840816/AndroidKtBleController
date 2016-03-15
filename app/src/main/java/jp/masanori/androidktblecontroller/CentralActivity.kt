@@ -53,6 +53,8 @@ class CentralActivity : FragmentActivity(){
     private var isWritingData = false
     private final val SEND_VALUE_LENGTH = 20
     private var readValue: ByteArray? = null
+    private var updateValue: ByteArray? = null
+    private var isValueUpdated = false
 
     fun onGpsEnabled(){
         // 2016.03.08現在GPSを求めるのはOS ver.6.0以上のみ.
@@ -138,7 +140,8 @@ class CentralActivity : FragmentActivity(){
     override fun onResume(){
         super.onResume()
         registerReceiver(broadcastReceiver, IntentFilter(BluetoothDevice.ACTION_ACL_CONNECTED))
-        if(! isConntected){
+        if(bleAdapter!!.isEnabled
+            && ! isConntected){
             bleGatt = null
             scanNewDevice()
         }
@@ -234,9 +237,15 @@ class CentralActivity : FragmentActivity(){
             if (getString(R.string.uuid_characteristic).equals(characteristic.getUuid().toString().toUpperCase())){
                 // Peripheralで値が更新されたらNotificationを受ける.
                 // メインスレッドでTextViewに値をセットする.
-                runOnUiThread {
+                /*runOnUiThread {
                     textReceived!!.text = characteristic.getStringValue(0)
-                }
+                }*/
+                updateValue = emptyArray<Byte>().toByteArray()
+                // Peripheralから値を読み込んだらByteArray型で追加.
+                updateValue = updateValue!!.plus(characteristic.value)
+                isValueUpdated = true
+                // 送信完了の文字列が届くまで読み込みリクエストを送る.
+                readText()
             }
         }
         override fun onCharacteristicWrite(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int){
@@ -276,13 +285,26 @@ class CentralActivity : FragmentActivity(){
                 if(characteristic.getStringValue(0).equals(resources.getString(R.string.ble_stop_sending_data))){
                     runOnUiThread {
                         // 送信完了の文字列を受け取ったらUIスレッドでTextViewに値をセットする.
-                        textRead!!.text = readValue?.toString(Charsets.UTF_8)
-                        readValue = emptyArray<Byte>().toByteArray()
+                        if(isValueUpdated){
+                            textReceived!!.text = updateValue?.toString(Charsets.UTF_8)
+                            updateValue = emptyArray<Byte>().toByteArray()
+                            isValueUpdated = false
+                        }
+                        else{
+                            textRead!!.text = readValue?.toString(Charsets.UTF_8)
+                            readValue = emptyArray<Byte>().toByteArray()
+                        }
                     }
                 }
                 else{
                     // Peripheralから値を読み込んだらByteArray型で追加.
-                    readValue = readValue!!.plus(characteristic.value)
+                    if(isValueUpdated){
+                        updateValue = updateValue!!.plus(characteristic.value)
+                    }
+                    else{
+                        readValue = readValue!!.plus(characteristic.value)
+                    }
+
                     // 送信完了の文字列が届くまで読み込みリクエストを送る.
                     readText()
                 }

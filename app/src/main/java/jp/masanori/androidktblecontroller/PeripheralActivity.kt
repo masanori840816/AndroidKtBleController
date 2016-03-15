@@ -258,7 +258,12 @@ class PeripheralActivity : FragmentActivity() {
     }
     private fun updateValue(newValue: String){
         if(isConnected){
-            bleCharacteristic!!.value = newValue.toByteArray()
+            readOriginalByteArray = newValue.toByteArray(Charsets.UTF_8)
+            readValueLengthFrom = 0
+            createReadData()
+            isReadData = true
+
+            bleCharacteristic!!.value = readByteArray
             bleGattServer?.notifyCharacteristicChanged(bleDevice, bleCharacteristic, false)
         }
     }
