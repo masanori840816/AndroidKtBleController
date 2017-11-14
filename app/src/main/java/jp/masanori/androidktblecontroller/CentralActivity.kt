@@ -68,11 +68,11 @@ class CentralActivity : FragmentActivity(){
         bleManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         bleAdapter = bleManager!!.adapter
 
-        textIsConnected = findViewById(R.id.text_central_isconnect) as TextView
-        textReceived = findViewById(R.id.text_central_received) as TextView
+        textIsConnected = findViewById<TextView>(R.id.text_central_isconnect)
+        textReceived = findViewById<TextView>(R.id.text_central_received)
 
-        var editTextWrite = findViewById(R.id.edit_central_write) as EditText
-        var buttonWrite = findViewById(R.id.button_central_write) as Button
+        var editTextWrite = findViewById<EditText>(R.id.edit_central_write)
+        var buttonWrite = findViewById<Button>(R.id.button_central_write)
         buttonWrite.setOnClickListener {
             if(isConntected) {
                 writeOriginalByteArray = editTextWrite.text.toString().toByteArray(Charsets.UTF_8)
@@ -82,8 +82,8 @@ class CentralActivity : FragmentActivity(){
             }
         }
 
-        textRead = findViewById(R.id.text_central_read) as TextView
-        var buttonRead = findViewById(R.id.button_central_read) as Button
+        textRead = findViewById<TextView>(R.id.text_central_read)
+        var buttonRead = findViewById<Button>(R.id.button_central_read)
         buttonRead.setOnClickListener{
             if(isConntected){
                 readText()
