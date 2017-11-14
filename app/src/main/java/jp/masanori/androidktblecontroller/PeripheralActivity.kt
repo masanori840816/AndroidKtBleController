@@ -58,14 +58,14 @@ class PeripheralActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_peripheral)
 
-        textIsConnected = findViewById(R.id.text_peripheral_isconnect) as TextView
-        editUpdateValue = findViewById(R.id.edit_peripheral_update_value) as EditText
-        editReadValue = findViewById(R.id.edit_peripheral_read_value) as EditText
-        textReceivedValue = findViewById(R.id.text_peripheral_received) as TextView
+        textIsConnected = findViewById<TextView>(R.id.text_peripheral_isconnect)
+        editUpdateValue = findViewById<EditText>(R.id.edit_peripheral_update_value)
+        editReadValue = findViewById<EditText>(R.id.edit_peripheral_read_value)
+        textReceivedValue = findViewById<TextView>(R.id.text_peripheral_received)
 
         writeValue = emptyArray<Byte>().toByteArray()
 
-        var buttonUpdate = findViewById(R.id.button_peripheral_update) as Button
+        var buttonUpdate = findViewById<Button>(R.id.button_peripheral_update)
         buttonUpdate.setOnClickListener{
             updateValue(editUpdateValue?.text.toString())
         }

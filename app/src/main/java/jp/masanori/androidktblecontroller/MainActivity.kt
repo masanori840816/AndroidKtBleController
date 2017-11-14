@@ -18,12 +18,12 @@ class MainActivity : AppCompatActivity() {
             finish()
         }
 
-        var buttonCentral = findViewById(R.id.button_central) as Button
+        var buttonCentral = findViewById<Button>(R.id.button_central)
         buttonCentral.setOnClickListener{
             var intentCentral = Intent(this, CentralActivity::class.java)
             startActivity(intentCentral)
         }
-        var buttonPeripheral = findViewById(R.id.button_peripheral) as Button
+        var buttonPeripheral = findViewById<Button>(R.id.button_peripheral)
         buttonPeripheral.setOnClickListener{
             var intentPeripheral = Intent(this, PeripheralActivity::class.java)
             startActivity(intentPeripheral)
